@@ -18,6 +18,7 @@ var Keycloak = require('keycloak-connect');
 var hogan = require('hogan-express');
 var express = require('express');
 var session = require('express-session');
+var path = require('path');
 
 var app = express();
 
@@ -36,10 +37,12 @@ app.engine('html', hogan);
 
 app.get('/', function (req, res) {
   res.render('index');
+  // res.send("aaa");
 });
 
 // Create a session-store to be used by both the express-session
 // middleware and the keycloak middleware.
+
 
 var memoryStore = new session.MemoryStore();
 
@@ -69,11 +72,9 @@ var keycloak = new Keycloak({
 // root URL.  Various permutations, such as /k_logout will ultimately
 // be appended to the admin URL.
 
-app.use(keycloak.middleware({
-  logout: '/logout',
-  admin: '/',
-  protected: '/protected/resource'
-}));
+app.use(keycloak.middleware());
+
+app.use('/static', keycloak.protect(), express.static(path.join(__dirname, 'public')));
 
 app.get('/login', keycloak.protect(), function (req, res) {
   res.render('index', {
@@ -82,11 +83,31 @@ app.get('/login', keycloak.protect(), function (req, res) {
   });
 });
 
-app.get('/protected/resource', keycloak.enforcer(['resource:view', 'resource:write'], {
-  resource_server_id: 'nodejs-apiserver'
-}), function (req, res) {
-  res.render('index', {
-    result: JSON.stringify(JSON.parse(req.session['keycloak-token']), null, 4),
-    event: '1. Access granted to Default Resource\n'
-  });
+var gg = null;
+app.get('/test', async (req, res) => {
+  if (!gg) {
+
+    const grant = await keycloak.grantManager.obtainDirectly("user", "password");
+    gg = grant;
+    
+  }
+  
+  const valres = await keycloak.grantManager.validateGrant(gg);
+  res.send(valres);
+  
 });
+
+// app.get('/orbay', keycloak.protect(), function (req, res) {
+//   res.render('orbay');
+// });
+
+
+
+// app.get('/protected/resource', keycloak.enforcer(['resource:view', 'resource:write'], {
+//   resource_server_id: 'nodejs-apiserver'
+// }), function (req, res) {
+//   res.render('index', {
+//     result: JSON.stringify(JSON.parse(req.session['keycloak-token']), null, 4),
+//     event: '1. Access granted to Default Resource\n'
+//   });
+// });
